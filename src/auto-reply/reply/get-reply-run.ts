@@ -871,6 +871,7 @@ export async function runPreparedReply(
       ? listOpenAIAuthProfileProvidersForAgentRuntime({
           provider,
           harnessRuntime: agentHarnessPolicy.runtime,
+          config: cfg,
         })
       : [provider];
   let authProfileId = useFastReplyRuntime

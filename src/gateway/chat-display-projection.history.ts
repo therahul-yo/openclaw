@@ -15,6 +15,7 @@ import {
 import { parseAgentSessionKey } from "../sessions/session-key-utils.js";
 import { projectAssistantDisplayContent } from "../shared/assistant-display-content.js";
 import { extractAssistantPhaseText } from "../shared/chat-message-content.js";
+import { escapeRegExp } from "../shared/regexp.js";
 import { isOpenClawDeliveryMirrorAssistantMessage } from "../shared/transcript-only-openclaw-assistant.js";
 import { extractChatHistoryBlockText } from "./chat-display-projection.canvas.js";
 import {
@@ -486,7 +487,7 @@ function extractPromptPrefixField(text: string, field: string): string | undefin
   }
   const lineEnd = text.indexOf("\n", prefixIndex);
   const header = lineEnd === -1 ? text.slice(prefixIndex) : text.slice(prefixIndex, lineEnd);
-  const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedField = escapeRegExp(field);
   const match = new RegExp(`(?:^|\\s)${escapedField}=([^\\s]+)`).exec(header);
   return normalizeOptionalString(match?.[1]);
 }

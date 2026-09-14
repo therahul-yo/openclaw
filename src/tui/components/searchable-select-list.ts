@@ -14,6 +14,7 @@ import {
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 import { uniqueStrings } from "@openclaw/normalization-core/string-normalization";
 import { stripAnsi } from "../../../packages/terminal-core/src/ansi.js";
+import { escapeRegExp } from "../../shared/regexp.js";
 import { sanitizeRenderableLine } from "../tui-formatters.js";
 
 const ANSI_ESCAPE = String.fromCharCode(27);
@@ -135,10 +136,6 @@ export class SearchableSelectList implements Component, Focusable {
     return [...scoredItems.map((s) => s.item), ...fuzzyMatches.map((entry) => entry.item)];
   }
 
-  private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
-
   private compareByScore = (
     a: { item: SearchableSelectItem; tier: number; score: number },
     b: { item: SearchableSelectItem; tier: number; score: number },
@@ -234,7 +231,7 @@ export class SearchableSelectList implements Component, Focusable {
         .filter((token) => token.length > 0),
     )
       .toSorted((a, b) => b.length - a.length)
-      .map((token) => new RegExp(this.escapeRegex(token), "gi")));
+      .map((token) => new RegExp(escapeRegExp(token), "gi")));
 
     // Calculate visible range with scrolling
     const startIndex = Math.max(

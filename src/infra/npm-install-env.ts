@@ -4,6 +4,7 @@ import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { uniqueStrings } from "@openclaw/normalization-core/string-normalization";
+import { escapeRegExp } from "../shared/regexp.js";
 import { UPDATE_NETWORK_TIMEOUT_MS } from "./update-network-budget.js";
 
 /** Options that scope npm config and cache paths for project-local installs. */
@@ -227,7 +228,7 @@ function resolveNpmConfigFiles(
 function hasNpmrcConfigKey(filePath: string, key: string): boolean {
   try {
     const raw = fsSync.readFileSync(filePath, "utf-8");
-    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const escapedKey = escapeRegExp(key);
     const pattern = new RegExp(`^\\s*${escapedKey}\\s*=`, "imu");
     return pattern.test(raw);
   } catch {

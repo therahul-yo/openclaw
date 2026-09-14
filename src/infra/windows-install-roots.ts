@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
+import { escapeRegExp } from "../shared/regexp.js";
 import { resolveDiagnosticProcessEnv } from "./process-env.js";
 
 const DEFAULT_WINDOWS_SYSTEM_ROOT = "C:\\Windows";
@@ -101,12 +102,8 @@ function locateWindowsRegExe(): string | null {
   return null;
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function parseRegQueryValue(stdout: string, valueName: string): string | null {
-  const pattern = new RegExp(`^\\s*${escapeRegex(valueName)}\\s+REG_[A-Z0-9_]+\\s+(.+)$`, "im");
+  const pattern = new RegExp(`^\\s*${escapeRegExp(valueName)}\\s+REG_[A-Z0-9_]+\\s+(.+)$`, "im");
   const match = stdout.match(pattern);
   return match?.[1]?.trim() || null;
 }

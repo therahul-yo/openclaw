@@ -9,6 +9,7 @@ import { readFileHandleBounded } from "../../infra/fs-safe-advanced.js";
 import { FsSafeError, openLocalFileSafely } from "../../infra/fs-safe.js";
 import { pruneMapToMaxSize } from "../../infra/map-size.js";
 import { isPathInside } from "../../security/scan-paths.js";
+import { escapeRegExp } from "../../shared/regexp.js";
 import { formatScanEvidence, LITERAL_SECRET_SKILL_CONTENT_RULE } from "./scan-evidence.js";
 
 // ---------------------------------------------------------------------------
@@ -393,10 +394,6 @@ function matchAliasedChildProcessCalls(
     }
   }
   return calls.toSorted((a, b) => a.index - b.index);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // The receiver names that, by long-standing convention, denote a direct

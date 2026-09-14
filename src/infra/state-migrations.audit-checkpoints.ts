@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { escapeRegExp } from "../shared/regexp.js";
 import { createSqliteAuditRecordStore } from "./sqlite-audit-record-store.js";
 import type {
   LegacyAuditLogSource,
@@ -189,7 +190,7 @@ export function detectLegacyAuditLogs(params: {
     } catch {
       // The active-path check below still preserves the ordinary detection result.
     }
-    const baseName = path.basename(logical.sourcePath).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const baseName = escapeRegExp(path.basename(logical.sourcePath));
     const rawArchivePattern = new RegExp(
       `^${baseName}\\.migrated(?:\\.([2-9]|[1-9][0-9]+))?\\.raw$`,
       "u",

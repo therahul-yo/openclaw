@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { CONFIG_AUDIT_SCOPE } from "../config/io.audit.js";
+import { escapeRegExp } from "../shared/regexp.js";
 import { withExistingOpenClawStateDatabaseReadOnly } from "../state/openclaw-state-db-readonly.js";
 import { SYSTEM_AGENT_AUDIT_SCOPE } from "../system-agent/audit.js";
 import { root as createFsSafeRoot } from "./fs-safe.js";
@@ -42,7 +43,7 @@ export async function hasLegacyAuditBackupSources(stateDir: string): Promise<boo
       }
       throw error;
     }
-    const escaped = logical.basename.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const escaped = escapeRegExp(logical.basename);
     const sourcePattern = new RegExp(
       `^(?:${escaped}|\\.${escaped}\\.doctor-importing(?:\\.(?:[2-9]|[1-9][0-9]+))?|${escaped}\\.migrated(?:\\.(?:[2-9]|[1-9][0-9]+))?\\.raw(?:\\.doctor-scrub-(?:progress|restore|staging))?)$`,
       "u",
@@ -68,7 +69,7 @@ export function isLegacyAuditMigrationBackupPath(sourcePath: string, stateDir: s
     if (basename === logical.basename) {
       return true;
     }
-    const escaped = logical.basename.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const escaped = escapeRegExp(logical.basename);
     const claimPattern = new RegExp(
       `^\\.${escaped}\\.doctor-importing(?:\\.(?:[2-9]|[1-9][0-9]+))?$`,
       "u",

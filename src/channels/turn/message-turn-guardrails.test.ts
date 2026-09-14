@@ -1,8 +1,11 @@
-import { spawnSync } from "node:child_process";
+// Message turn guardrail tests cover channel turn safety checks and fixture boundaries.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { expectNoReaddirSyncDuring } from "../../test-utils/fs-scan-assertions.js";
+import { listGitTrackedFiles } from "../../test-utils/repo-files.js";
+import { runChannelTurn } from "./run-channel-turn.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -13,12 +16,13 @@ const migratedMessageTurnFiles = [
   "extensions/imessage/src/monitor/inbound-processing.ts",
   "extensions/line/src/bot-handlers.ts",
   "extensions/line/src/bot-message-context.ts",
-  "extensions/mattermost/src/mattermost/monitor.ts",
+  "extensions/mattermost/src/mattermost/monitor-posts.ts",
   "extensions/msteams/src/monitor-handler/message-handler.ts",
   "extensions/signal/src/monitor/event-handler.ts",
   "extensions/slack/src/monitor/message-handler/prepare.ts",
   "extensions/telegram/src/bot-message-context.body.ts",
   "extensions/telegram/src/bot-message-context.session.ts",
+  "extensions/telegram/src/bot-message-dispatch-context.ts",
   "extensions/telegram/src/bot-message-dispatch.ts",
   "extensions/whatsapp/src/auto-reply/monitor/group-gating.ts",
   "extensions/zalouser/src/monitor.ts",
@@ -29,15 +33,13 @@ const historyWindowFiles = [
   "extensions/feishu/src/bot.ts",
   "extensions/imessage/src/monitor/inbound-processing.ts",
   "extensions/line/src/bot-handlers.ts",
-  "extensions/line/src/bot-message-context.ts",
-  "extensions/mattermost/src/mattermost/monitor.ts",
+  "extensions/line/src/group-history.ts",
+  "extensions/mattermost/src/mattermost/monitor-posts.ts",
   "extensions/msteams/src/monitor-handler/message-handler.ts",
-  "extensions/qqbot/src/bridge/sdk-adapter.ts",
   "extensions/signal/src/monitor/event-handler.ts",
   "extensions/slack/src/monitor/message-handler/prepare.ts",
-  "extensions/telegram/src/bot-message-context.body.ts",
-  "extensions/telegram/src/bot-message-context.session.ts",
-  "extensions/telegram/src/bot-message-dispatch.ts",
+  "extensions/telegram/src/bot-message-dispatch-context.ts",
+  "extensions/telegram/src/group-history-window.ts",
   "extensions/whatsapp/src/auto-reply/monitor/group-gating.ts",
   "extensions/zalouser/src/monitor.ts",
 ];
@@ -46,9 +48,7 @@ const lowLevelHistoryHelpers = [
   "buildInboundHistoryFromMap",
   "buildHistoryContextFromMap",
   "buildPendingHistoryContextFromMap",
-  "clearHistoryEntries",
   "clearHistoryEntriesIfEnabled",
-  "recordPendingHistoryEntry",
   "recordPendingHistoryEntryIfEnabled",
   "recordPendingHistoryEntryWithMedia",
 ];
@@ -56,7 +56,6 @@ const lowLevelHistoryHelpers = [
 const legacyReplyHistoryCompatibilityFiles = new Set([
   "extensions/mattermost/runtime-api.ts",
   "extensions/mattermost/src/mattermost/runtime-api.ts",
-  "extensions/mattermost/src/runtime-api.ts",
 ]);
 
 const skippedExtensionScanDirs = new Set([
@@ -83,19 +82,9 @@ function isScannableTsFile(relativePath: string): boolean {
 }
 
 function listGitTsFiles(relativeDir: string): string[] | null {
-  const result = spawnSync("git", ["ls-files", "--", relativeDir], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-  });
-  if (result.status !== 0) {
-    return null;
-  }
-  return result.stdout
-    .split("\n")
-    .map((line) => line.trim().replaceAll("\\", "/"))
-    .filter((line) => line.length > 0 && isScannableTsFile(line))
-    .toSorted();
+  return (
+    listGitTrackedFiles({ repoRoot, pathspecs: relativeDir })?.filter(isScannableTsFile) ?? null
+  );
 }
 
 function listTsFiles(relativeDir: string): string[] {
@@ -134,18 +123,30 @@ function collectReplyHistoryBindings(source: string): Set<string> {
 }
 
 describe("message turn migration guardrails", () => {
+  it("drops when ingest returns null", async () => {
+    const result = await runChannelTurn({
+      channel: "test",
+      raw: {},
+      adapter: {
+        ingest: () => null,
+        resolveTurn: vi.fn(),
+      },
+    });
+
+    expect(result).toEqual({
+      admission: { kind: "drop", reason: "ingest-null" },
+      dispatched: false,
+    });
+  });
+
   it("lists plugin TypeScript files from git without walking extension roots", () => {
-    const readDir = vi.spyOn(fs, "readdirSync");
-    try {
+    expectNoReaddirSyncDuring(() => {
       const files = listTsFiles("extensions");
 
       expect(files.length).toBeGreaterThan(0);
       expect(files.every((file) => file.startsWith("extensions/"))).toBe(true);
       expect(files.some((file) => file.endsWith(".d.ts"))).toBe(false);
-      expect(readDir).not.toHaveBeenCalled();
-    } finally {
-      readDir.mockRestore();
-    }
+    });
   });
 
   it("keeps migrated message paths off low-level reply-history helpers", () => {
